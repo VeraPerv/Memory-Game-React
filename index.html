@@ -8,6 +8,8 @@
   <script src="vendor/react-dom.development.js"></script>
   <script src="vendor/babel.min.js"></script>
   <script src="data.js"></script>
+  <!-- Файл для настроек приложения -->
+  <script src="settings.js"></script>
 </head>
 <body>
   <div id="root"></div>
@@ -17,46 +19,101 @@
     root.render(<App images={images}/>);
 
     function App({images = []}) {
-      //Оставляю список разгаданных пока пустым, т.к. не реализовано сравнение карточек
-      const finishedItems = [];
-      // TODO: добавьте состояние для счётчика шагов
-      const [stepsCount,setStepsCount] = React.useState(0);
-      // Функция checkItems на этом этапе только считает количество шагов.
-      const checkItems = () => setStepsCount((i) => i + 1);
+      const [finishedItems,setFinishedItems] = React.useState([]);
+      const [stepsCount, setStepsCount] = React.useState(0);
+      // TODO: добавьте состояние для угаданных пар карточек
+      const checkItems = (firstItem,secondItem) => {
+        // TODO: реализуйте сравнение карточек в паре 
+      const firstImage = images.find(({id}) => id === firstItem);
+      const secondImage = images.find(({id}) => id === secondItem);   
+      //Если карточки одинаковые добавляем их в финишные
+      if(firstImage.url === secondImage.url) {
+        setFinishedItems((items) => [...items,firstImage,secondImage])
+        }
+        setStepsCount((i) => i + 1);
+      };
+      const isWin = finishedItems.length === images.length;
+      const modalClassName = 'modal-box';
+      const modalCaption = isWin ? 'Победа!' : 'Поражение';
+      const modalDescription = `Вы собрали все пары за ${stepsCount} шагов`
+      //const isGameOver = finishedItems.length === images.length;???
+      const handleReset = () => {
+        setFinishedItems([]);
+        setStepsCount(0);
+      }
       return (
         <section className="game container">
-        
-          <Steps count={stepsCount}/>
-          <Grid images={images} checkItems={checkItems}/>
+          <Progress value = {finishedItems.length} max = {images.length} />
+          {/* TODO: отобразите прогресс игры */}
+          <div className="steps">Шаг {stepsCount}</div>
+          <Grid
+            images={images}
+            finishedItems={finishedItems}
+            checkItems={checkItems}
+          />
+          {isWin && (<Modal className = {modalClassName}>
+            <h3 className = 'modal-caption'>{modalCaption}</h3>
+            <p className = 'modal-description'>{modalDescription}</p>
+            <button onClick={handleReset} className="button modal-button" type="button">Новая игра</button>
+            </Modal>)}
         </section>
       );
     }
 
-    function Steps ({count = 0}) {
-      return <div className="steps">Шаг {count}</div>
+    function Modal ({children,className}) {
+    return (
+    <div className="modal">
+      <div className={className}>
+        {children}
+      </div>
+    </div>
+    )
     }
-//удалить пусто visibleItems в параметрах? --> Список visibleItems изменяется в процессе работы приложения,
-      // поэтому помещаем его в состояние React.useState.
-    function Grid({images = [], finishedItems = [], checkItems}) {
-      // TODO: добавьте состояние списка открытых карточек
-      const [visibleItems,setVisibleItems] = React.useState([]);
-      //ШАГ5 в ф handleCardClick созраняем карточки и их id
+    
+    function Progress ({value,max}) {
+      return (  
+        <>
+        <div className="progress-wrapper">
+      <div className="progress" style={ {width:`${value / max * 100}%`}}></div>
+    </div>
+    <p class="progress-description">Открыто <span>{value / 2}</span> / <span>{max / 2}</span></p>
+    </>
+    )
+    }
+   
+//{width:`${(max - value) / max * 100}%`}
+   
+
+    function Grid({images = [], finishedItems, checkItems}) {
+      const [visibleItems, setVisibleItems] = React.useState([]);
+      
       const handleCardClick = (id) => {
-        if(visibleItems.includes(id) || finishedItems.includes(id)){
+        if (finishedItems.includes(id) || visibleItems.includes(id)) {
           return;
         }
-        checkItems();
-        setVisibleItems((items) => [...items,id])
-        console.log(visibleItems)        
-      
-      }
-    //ШАГ4 передача аргументом в ф onCardClick ф-ю handleCardClick
+
+        switch(visibleItems.length) {
+            case 0 :
+            setVisibleItems([id]);           
+            break;
+            case 1 : setVisibleItems((items) => [...items,id]);         
+            checkItems(visibleItems[0],id);
+            setTimeout(() => {
+              setVisibleItems([]);
+            },TIMEOUT)
+            break;
+            default:
+              setVisibleItems([]);
+        }
+  
+      };
+
       return (
         <ul className="cards">
           {images.map((item) => (
             <Card
               key={item.id}
-              id = {item.id}
+              id={item.id}
               url={item.url}
               description={item.description}
               isVisible={visibleItems.includes(item.id)}
@@ -67,21 +124,20 @@
         </ul>
       );
     }
-//ШАГ3 Обязательно указываем в параметрах ф onCardClick т.к. выше мы ее в аргументах передаем и в ней уже другая ф handleCardClick, которая выше в f Grid
-    function Card({url, description, isVisible, isFinished,id,onCardClick}) {
-      // TODO: добавьте обработку события
- console.log(isVisible)
+
+    function Card({url, description, id, isVisible, isFinished, onCardClick}) {
       const className = `${
         isVisible ? 'card-show' : ''
       } ${
         isFinished ? 'card-finished' : ''
       }`;
+
       const handleClick = () => {
-        onCardClick(id);//ШАГ 2 d handleClick передаем другую функцию onCardClick, а в ней уже id карточки, которую кликнули
-      }
-      ///*шаг1 - ДЕЛАЕМ КЛИК, В НЕГО ПЕРЕДАЕМ handleClick
+        onCardClick(id);
+      };
+
       return (
-        <li className={`card ${className}`} onClick={handleClick}> 
+        <li onClick={handleClick} className={`card ${className}`}>
           <img
             width="204" height="144"
             src={url}
