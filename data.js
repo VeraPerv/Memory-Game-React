@@ -47,4 +47,9 @@ const images = [{
   'url': 'img/cats-6.jpg',
   'description': 'white and purple flower petals',
 }];
-console.log(images.length)
+
+const results = [
+  { name: 'Аня', stepsCount: 16 },
+  { name: 'Вася', stepsCount: 12 },
+  { name: 'Петя', stepsCount: 19 }
+];

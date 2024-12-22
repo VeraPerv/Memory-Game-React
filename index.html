@@ -8,7 +8,6 @@
   <script src="vendor/react-dom.development.js"></script>
   <script src="vendor/babel.min.js"></script>
   <script src="data.js"></script>
-  <!-- Файл для настроек приложения -->
   <script src="settings.js"></script>
 </head>
 <body>
@@ -16,96 +15,125 @@
   <script type="text/babel">
     const container = document.getElementById('root');
     const root = ReactDOM.createRoot(container);
-    root.render(<App images={images}/>);
+    root.render(<App images={images} results={results}/>);
 
-    function App({images = []}) {
-      const [finishedItems,setFinishedItems] = React.useState([]);
+    function App({images = [], results = []}) {
+      const [page,setPage] = React.useState('game');
+      const [result, setResult] = React.useState(0);
+      const showResults = (imagesCount) => {
+        setPage('results');
+        setResult(imagesCount)
+      };
+      const handleReset = () => setPage('game');
+      const getPage = (route) => {
+        if(route === 'game') {
+         return <GamePage images={images} onShowResults={showResults}/>
+        }
+        if(route === 'results') {
+          return <ResultsPage results ={results} onResetGame = {handleReset} current = {result}/>
+        }
+          return null;
+      }
+      return getPage(page);      
+    }
+    const useGame = (images) => {
+      const [finishedItems, setFinishedItems] = React.useState([]);
       const [stepsCount, setStepsCount] = React.useState(0);
-      // TODO: добавьте состояние для угаданных пар карточек
-      const checkItems = (firstItem,secondItem) => {
-        // TODO: реализуйте сравнение карточек в паре 
-      const firstImage = images.find(({id}) => id === firstItem);
-      const secondImage = images.find(({id}) => id === secondItem);   
-      //Если карточки одинаковые добавляем их в финишные
-      if(firstImage.url === secondImage.url) {
-        setFinishedItems((items) => [...items,firstImage,secondImage])
+
+      const checkItems = (firstItem, secondItem) => {
+        const firstImage = images.find(({id}) => id === firstItem);
+        const secondImage = images.find(({id}) => id === secondItem);
+        if (firstImage.url === secondImage.url) {
+          setFinishedItems((items) => [...items, firstItem, secondItem]);
         }
         setStepsCount((i) => i + 1);
       };
-      const isWin = finishedItems.length === images.length;
-      const modalClassName = 'modal-box';
-      const modalCaption = isWin ? 'Победа!' : 'Поражение';
-      const modalDescription = `Вы собрали все пары за ${stepsCount} шагов`
-      //const isGameOver = finishedItems.length === images.length;???
-      const handleReset = () => {
-        setFinishedItems([]);
-        setStepsCount(0);
-      }
+
+      const isWin = finishedItems.length > 0 && finishedItems.length === images.length;
+
+      return {
+        finishedItems,
+        stepsCount,
+        checkItems,
+        isWin
+      };
+    };
+
+    function GamePage({images = [], onShowResults}) {
+      const {
+        finishedItems,
+        stepsCount,
+        checkItems,
+        isWin
+      } = useGame(images);
+
+      const handleResultsClick = () => {
+        onShowResults(finishedItems.length / 2);
+      };
+
       return (
         <section className="game container">
-          <Progress value = {finishedItems.length} max = {images.length} />
-          {/* TODO: отобразите прогресс игры */}
+          <Progress value={finishedItems.length / 2} max={images.length / 2} />
           <div className="steps">Шаг {stepsCount}</div>
           <Grid
             images={images}
             finishedItems={finishedItems}
             checkItems={checkItems}
           />
-          {isWin && (<Modal className = {modalClassName}>
-            <h3 className = 'modal-caption'>{modalCaption}</h3>
-            <p className = 'modal-description'>{modalDescription}</p>
-            <button onClick={handleReset} className="button modal-button" type="button">Новая игра</button>
-            </Modal>)}
+          {isWin && (
+            <Modal>
+              <h3 className="modal-caption">Победа!</h3>
+              <p className="modal-description">Теперь давайте узнаем результаты этой партии</p>
+              <button className="button modal-button" type="button" onClick={handleResultsClick}>Показать результаты</button>
+            </Modal>
+          )}
         </section>
       );
     }
 
-    function Modal ({children,className}) {
-    return (
-    <div className="modal">
-      <div className={className}>
-        {children}
-      </div>
-    </div>
-    )
-    }
-    
-    function Progress ({value,max}) {
-      return (  
+    function Progress({value, max}) {
+      return (
         <>
-        <div className="progress-wrapper">
-      <div className="progress" style={ {width:`${value / max * 100}%`}}></div>
-    </div>
-    <p class="progress-description">Открыто <span>{value / 2}</span> / <span>{max / 2}</span></p>
-    </>
-    )
+          <div className="progress-wrapper">
+            <div className="progress" style={{width: `${value / max * 100}%`}}></div>
+          </div>
+          <p className="progress-description">Открыто {value} / {max}</p>
+        </>
+      );
     }
-   
-//{width:`${(max - value) / max * 100}%`}
-   
+
+    function Modal({children}) {
+      return (
+        <div className="modal">
+          <div className="modal-box">
+            {children}
+          </div>
+        </div>
+      );
+    }
 
     function Grid({images = [], finishedItems, checkItems}) {
       const [visibleItems, setVisibleItems] = React.useState([]);
-      
+
       const handleCardClick = (id) => {
         if (finishedItems.includes(id) || visibleItems.includes(id)) {
           return;
         }
 
-        switch(visibleItems.length) {
-            case 0 :
-            setVisibleItems([id]);           
+        switch (visibleItems.length) {
+          case 0:
+            setVisibleItems([id]);
             break;
-            case 1 : setVisibleItems((items) => [...items,id]);         
-            checkItems(visibleItems[0],id);
+          case 1:
+            setVisibleItems((items) => [...items, id]);
+            checkItems(visibleItems[0], id);
             setTimeout(() => {
               setVisibleItems([]);
-            },TIMEOUT)
+            }, TIMEOUT);
             break;
-            default:
-              setVisibleItems([]);
+          default:
+            setVisibleItems([]);
         }
-  
       };
 
       return (
@@ -113,9 +141,7 @@
           {images.map((item) => (
             <Card
               key={item.id}
-              id={item.id}
-              url={item.url}
-              description={item.description}
+              item={item}
               isVisible={visibleItems.includes(item.id)}
               isFinished={finishedItems.includes(item.id)}
               onCardClick={handleCardClick}
@@ -125,7 +151,8 @@
       );
     }
 
-    function Card({url, description, id, isVisible, isFinished, onCardClick}) {
+    function Card({item, isVisible, isFinished, onCardClick}) {
+      const {id, url, description} = item;
       const className = `${
         isVisible ? 'card-show' : ''
       } ${
@@ -144,6 +171,35 @@
             alt={description}
           />
         </li>
+      );
+    }
+  
+    function ResultsPage({results, onResetGame, current}) {
+      const sortedResults = [...results,{name: 'Ваш результат', stepsCount: current}].sort((a,b) => a.stepsCount - b.stepsCount);
+      const resultsRows = sortedResults.map(({name,stepsCount}, index) => (
+        <tr key={name} className={`result-table-row ${stepsCount === current ? 'active' : ''}`}> 
+          <td> {index + 1}</td>
+          <td> {name}</td>
+          <td> {stepsCount}</td>
+            </tr>
+      ))
+      return (
+        <section className="result container">
+        <h2>Лучшие результаты:</h2>
+    <p>Вы завершили игру за <b>`{current} шагов`</b>, так держать!</p>
+    <table className="result-table">
+      <thead>
+      <tr className="result-table-row">
+        <th>Место</th>
+        <th>Имя</th>
+        <th>Шаги</th>
+      </tr>
+      </thead>
+      <tbody> {resultsRows}</tbody>
+    </table>
+    <p>Хотите попробовать ещё раз?</p>
+    <button className="button result-button" onClick = {onResetGame} type="button">Новая игра</button>
+        </section>
       );
     }
   </script>
